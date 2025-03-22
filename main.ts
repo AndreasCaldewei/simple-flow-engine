@@ -1,3 +1,5 @@
+import { Engine } from "json-rules-engine";
+
 export interface Node {
   id: string;
   inputs: Record<string, unknown>;
@@ -257,7 +259,7 @@ export class FlowMachine {
 
       // Find the first edge whose conditions are satisfied
       for (const edge of outgoingEdges) {
-        if (this.evaluateConditions(edge.conditions, node.outputs)) {
+        if (await this.evaluateConditions(edge.conditions, node.outputs)) {
           const nextNode = this.graph.getTargetNode(edge.id);
           if (nextNode) {
             // Record edge traversal
@@ -290,27 +292,64 @@ export class FlowMachine {
   }
 
   /**
-   * Evaluates edge conditions against node outputs
+   * Evaluates edge conditions against node outputs using json-rules-engine
    * @param conditions The conditions to evaluate
    * @param outputs The node outputs
    * @returns True if conditions are satisfied, false otherwise
    */
-  private evaluateConditions(
+  private async evaluateConditions(
     conditions: Record<string, unknown>,
     outputs: Record<string, unknown>,
-  ): boolean {
+  ): Promise<boolean> {
     // If no conditions, always pass
     if (Object.keys(conditions).length === 0) {
       return true;
     }
 
-    // Simple implementation - checks if all condition key/values match in outputs
+    // Check if using the rules engine format (has 'all' or 'any' operators)
+    if (conditions.all || conditions.any) {
+      return await this.evaluateWithRulesEngine(conditions, outputs);
+    }
+
+    // Legacy implementation - simple key/value matching
     for (const [key, value] of Object.entries(conditions)) {
       if (outputs[key] !== value) {
         return false;
       }
     }
     return true;
+  }
+
+  /**
+   * Evaluates conditions using the json-rules-engine
+   * @param conditions Object containing rule conditions
+   * @param outputs Node outputs to evaluate against
+   * @returns True if conditions are met, false otherwise
+   */
+  private async evaluateWithRulesEngine(
+    conditions: Record<string, unknown>,
+    outputs: Record<string, unknown>,
+  ): Promise<boolean> {
+    try {
+      const engine = new Engine();
+
+      // Create a rule with the conditions directly
+      const rule = {
+        conditions,
+        event: { type: "condition-met" }, // Simple placeholder event
+      };
+
+      engine.addRule(rule);
+
+      // Run the engine with the node outputs as facts
+      const { events } = await engine.run(outputs);
+
+      // If any events were triggered, the conditions are met
+      return events.length > 0;
+    } catch (error) {
+      console.error("Error evaluating rules:", error);
+      return false;
+    }
   }
 
   /**
