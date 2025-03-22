@@ -1,12 +1,12 @@
 {
-  "name": "firegit",
-  "version": "0.0.6",
+  "name": "simple-flow-machine",
+  "version": "0.0.3",
   "description": "",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "type": "module",
-  "repository": "https://github.com/AndreasCaldewei/fire-git",
+  "repository": "https://github.com/AndreasCaldewei/simple-flow-machine",
   "files": [
     "dist"
   ],

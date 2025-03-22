@@ -1,65 +1,101 @@
-# FlowMachine
+# Flow Engine
 
-A TypeScript-based rule engine for executing node-based workflows with conditional branching.
+A powerful, TypeScript-based engine for defining and executing rule-based flows with conditional logic.
 
 ## Overview
 
-FlowMachine is a flexible workflow execution engine that allows you to define, load, and execute flow-based processes. The engine processes workflows as directed graphs, where:
+Flow Engine is a library that enables you to build and execute graph-based workflows where:
 
-- **Nodes** represent tasks or actions to be executed
-- **Edges** connect nodes and include conditions that determine the flow path
+- Nodes represent executable tasks or decision points
+- Edges represent transitions between nodes with conditional logic
+- Rules determine which paths to follow based on the output of previous nodes
 
-The engine provides a complete execution context that tracks the entire process flow, allowing for detailed analysis, debugging, and performance monitoring.
+This engine is ideal for building:
 
-## Features
+- Business process workflows
+- Decision trees
+- State machines
+- Event-driven applications
+- Approval flows
+- Service orchestration
 
-- 🔄 Flow-based process execution with start and end nodes
-- 🔀 Conditional branching with JSON-based rule evaluation
-- 📊 Detailed execution tracking and metrics
-- 🧩 Extensible task handler system
-- 🔌 Plugin architecture for custom node types
-- 📝 Complete execution context tracing
-- ⏱️ Performance metrics for analysis
+## Core Components
 
-## Installation
+### FlowGraph
 
-```bash
-npm install flow-machine
-# or
-yarn add flow-machine
-```
+Represents the structure of the workflow:
 
-## Basic Usage
+- **Nodes**: Executable units with inputs and outputs
+- **Edges**: Connections between nodes with conditional routing
+
+### HandlerResolver
+
+Manages the execution of different node types:
+
+- Register handlers for specific node types
+- Execute the appropriate handler for each node
+
+### FlowMachine
+
+Orchestrates the execution of the entire flow:
+
+- Traverses the graph based on conditional logic
+- Manages data flow between nodes
+- Tracks execution context for debugging and analysis
+
+## Quick Start
 
 ```typescript
-import { FlowMachine, HandlerResolver } from "flow-machine";
+import { FlowMachine, HandlerResolver } from "flow-engine";
 
-// 1. Create a new flow machine
-const machine = new FlowMachine();
+// Create a new flow machine
+const flowMachine = new FlowMachine();
 
-// 2. Register task handlers
-machine.handlers.registerHandler("calculation", async (inputs) => {
+// Define handlers for different node types
+flowMachine.handlers.registerHandler("calculate", async (inputs) => {
   const { a, b } = inputs;
-  return { result: Number(a) + Number(b) };
+  return {
+    sum: Number(a) + Number(b),
+    product: Number(a) * Number(b),
+  };
 });
 
-// 3. Define your flow
+flowMachine.handlers.registerHandler("decide", async (inputs) => {
+  const { sum } = inputs;
+  return {
+    result: Number(sum) > 10 ? "large" : "small",
+  };
+});
+
+// Define the flow structure
 const flowDefinition = {
   nodes: [
     {
       id: "start",
       type: "start",
       inputs: {},
-      outputs: { value: 10 },
+      outputs: { a: 5, b: 3 },
     },
     {
       id: "calculate",
-      type: "calculation",
-      inputs: { a: 10, b: 20 },
+      type: "calculate",
+      inputs: {},
       outputs: {},
     },
     {
-      id: "end",
+      id: "decide",
+      type: "decide",
+      inputs: {},
+      outputs: {},
+    },
+    {
+      id: "end-large",
+      type: "end",
+      inputs: {},
+      outputs: {},
+    },
+    {
+      id: "end-small",
       type: "end",
       inputs: {},
       outputs: {},
@@ -67,149 +103,133 @@ const flowDefinition = {
   ],
   edges: [
     {
-      id: "edge1",
+      id: "start-to-calc",
       source: "start",
       target: "calculate",
       conditions: {},
     },
     {
-      id: "edge2",
+      id: "calc-to-decide",
       source: "calculate",
-      target: "end",
+      target: "decide",
       conditions: {},
+    },
+    {
+      id: "decide-to-large",
+      source: "decide",
+      target: "end-large",
+      conditions: { result: "large" },
+    },
+    {
+      id: "decide-to-small",
+      source: "decide",
+      target: "end-small",
+      conditions: { result: "small" },
     },
   ],
 };
 
-// 4. Load the flow
-machine.loadFlow(flowDefinition);
+// Load the flow definition
+flowMachine.loadFlow(flowDefinition);
 
-// 5. Execute the flow
-async function runFlow() {
+// Execute the flow
+(async () => {
   try {
-    const result = await machine.run();
-    console.log("Flow executed successfully");
-    console.log("Final result:", machine.getResult());
-    console.log("Execution metrics:", machine.getExecutionMetrics());
+    const context = await flowMachine.run();
+    console.log("Flow execution completed!");
+    console.log("Result:", flowMachine.getResult());
+    console.log("Metrics:", flowMachine.getExecutionMetrics());
   } catch (error) {
     console.error("Flow execution failed:", error);
   }
-}
-
-runFlow();
+})();
 ```
 
-## Core Components
+## Advanced Features
 
-### FlowGraph
+### Conditional Routing with json-rules-engine
 
-Manages the graph structure of the workflow, including nodes and edges.
-
-```typescript
-const graph = new FlowGraph();
-graph.addNode({ id: "node1", type: "task", inputs: {}, outputs: {} });
-```
-
-### HandlerResolver
-
-Manages task handlers for different node types.
+The engine supports complex conditional logic using [json-rules-engine](https://github.com/CacheControl/json-rules-engine):
 
 ```typescript
-const handlers = new HandlerResolver();
-handlers.registerHandler("http", async (inputs) => {
-  // Make HTTP request
-  return { response: result };
-});
-```
-
-### FlowMachine
-
-The main engine that orchestrates the execution of the workflow.
-
-```typescript
-const machine = new FlowMachine();
-machine.loadFlow(definition);
-const result = await machine.run();
-```
-
-## Advanced Usage
-
-### Conditional Branching
-
-FlowMachine supports conditional branching through edge conditions:
-
-```typescript
-// Simple condition
-const simpleEdge = {
-  id: "edge1",
-  source: "node1",
-  target: "node2",
-  conditions: { status: "success" },
-};
-
-// JSON Rules Engine condition
-const complexEdge = {
-  id: "edge2",
-  source: "node1",
-  target: "node3",
+// Edge with complex conditions
+{
+  id: 'complex-condition',
+  source: 'node1',
+  target: 'node2',
   conditions: {
     all: [
-      { fact: "status", operator: "equal", value: "success" },
-      { fact: "score", operator: "greaterThan", value: 80 },
-    ],
-  },
-};
+      {
+        fact: 'amount',
+        operator: 'greaterThan',
+        value: 1000
+      },
+      {
+        fact: 'category',
+        operator: 'equal',
+        value: 'premium'
+      }
+    ]
+  }
+}
 ```
 
-### Execution Context
+### Execution Context and Debugging
 
-FlowMachine provides detailed execution context:
+Get detailed execution traces for debugging and analysis:
 
 ```typescript
-// Get complete execution trace
-const trace = machine.getExecutionTrace();
+// After running the flow
+const trace = flowMachine.getExecutionTrace();
+console.log("Node executions:", trace.nodeExecutions);
+console.log("Edge traversals:", trace.edgeTraversals);
+```
 
-// Get specific node result
-const nodeResult = machine.getNodeResult("node1");
+### Performance Metrics
 
-// Get performance metrics
-const metrics = machine.getExecutionMetrics();
+Monitor flow execution performance:
+
+```typescript
+const metrics = flowMachine.getExecutionMetrics();
+console.log(
+  `Executed ${metrics.nodeCount} nodes in ${metrics.executionTimeMs}ms`,
+);
 ```
 
 ## Node Types
 
-The system recognizes several special node types:
+The engine has built-in support for these special node types:
 
-- **start**: Initiates the workflow
-- **end**: Terminates the workflow and contains the final result
-- **custom types**: Any registered handler type (e.g., 'http', 'calculation', etc.)
+- **start**: Entry point for the flow (required)
+- **end**: Terminal node that completes a flow branch
 
-## Error Handling
-
-The system captures errors during execution:
+You can register handlers for any custom node types:
 
 ```typescript
-try {
-  await machine.run();
-} catch (error) {
-  const executionTrace = machine.getExecutionTrace();
-  console.log("Error occurred:", executionTrace.error);
-  console.log("Failed at node:", executionTrace.nodeExecutions.pop());
-}
+// Register a custom API call handler
+flowMachine.handlers.registerHandler("api-call", async (inputs) => {
+  const { url, method, data } = inputs;
+  const response = await fetch(url, {
+    method,
+    body: data ? JSON.stringify(data) : undefined,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return {
+    status: response.status,
+    data: await response.json(),
+  };
+});
 ```
 
-## TypeScript Interfaces
+## Best Practices
 
-The system provides TypeScript interfaces for all components:
-
-- `Node`: Defines a workflow node
-- `Edge`: Defines a connection between nodes
-- `ExecutionContext`: Defines the execution tracking structure
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. **Define clear node boundaries**: Each node should have a single responsibility
+2. **Use meaningful node and edge IDs**: Makes debugging easier
+3. **Keep conditions simple**: Complex conditions should be broken into multiple edges
+4. **Handle errors gracefully**: Register error handler nodes for important operations
+5. **Use end nodes appropriately**: All possible flow paths should lead to an end node
 
 ## License
 
-[MIT](LICENSE)
+MIT
