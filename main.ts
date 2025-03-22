@@ -118,8 +118,8 @@ export class FlowGraph {
   }
 }
 
-export class TaskResolver {
-  tasks = new Map<
+export class HandlerResolver {
+  handlers = new Map<
     string,
     (inputs: Record<string, unknown>) => Promise<Record<string, unknown>>
   >();
@@ -129,13 +129,13 @@ export class TaskResolver {
    * @param type The task type
    * @param handler The task handler function
    */
-  registerTask(
+  registerHandler(
     type: string,
     handler: (
       inputs: Record<string, unknown>,
     ) => Promise<Record<string, unknown>>,
   ): void {
-    this.tasks.set(type, handler);
+    this.handlers.set(type, handler);
   }
 
   /**
@@ -144,8 +144,8 @@ export class TaskResolver {
    * @returns Promise with the task outputs
    * @throws Error if no handler is registered for the node type
    */
-  async executeTask(node: Node): Promise<Record<string, unknown>> {
-    const handler = this.tasks.get(node.type);
+  async executeHandler(node: Node): Promise<Record<string, unknown>> {
+    const handler = this.handlers.get(node.type);
     if (!handler) {
       throw new Error(`No task handler registered for node type: ${node.type}`);
     }
@@ -156,7 +156,7 @@ export class TaskResolver {
 
 export class FlowMachine {
   graph = new FlowGraph();
-  taskResolver = new TaskResolver();
+  handlers = new HandlerResolver();
   context: ExecutionContext = this.createNewContext();
 
   /**
@@ -223,7 +223,7 @@ export class FlowMachine {
       }
       // Execute regular nodes (not start nodes)
       else if (node.type !== "start") {
-        outputs = await this.taskResolver.executeTask(node);
+        outputs = await this.handlers.executeHandler(node);
 
         // Store outputs in the node
         for (const [key, value] of Object.entries(outputs)) {

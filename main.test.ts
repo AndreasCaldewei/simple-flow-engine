@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from "vitest";
-import { FlowMachine, FlowGraph, TaskResolver, Node, Edge } from "./main";
+import { FlowMachine, FlowGraph, HandlerResolver, Node, Edge } from "./main";
 
 // Setup for mocking fetch API
 global.fetch = vi.fn();
@@ -22,7 +22,7 @@ describe("FlowMachine", () => {
   test("should create a new FlowMachine instance", () => {
     expect(flowMachine).toBeDefined();
     expect(flowMachine.graph).toBeInstanceOf(FlowGraph);
-    expect(flowMachine.taskResolver).toBeInstanceOf(TaskResolver);
+    expect(flowMachine.handlers).toBeInstanceOf(HandlerResolver);
   });
 
   test("should load a flow definition", () => {
@@ -70,7 +70,7 @@ describe("FlowMachine", () => {
   test("should register and execute task handlers", async () => {
     // Setup
     const mockTaskHandler = vi.fn().mockResolvedValue({ result: "success" });
-    flowMachine.taskResolver.registerTask("testTask", mockTaskHandler);
+    flowMachine.handlers.registerHandler("testTask", mockTaskHandler);
 
     const flowDefinition = {
       nodes: [
@@ -105,7 +105,7 @@ describe("FlowMachine", () => {
 
   test("should evaluate edge conditions correctly", async () => {
     // Setup
-    flowMachine.taskResolver.registerTask("branchTask", async () => ({
+    flowMachine.handlers.registerHandler("branchTask", async () => ({
       status: "success",
     }));
 
@@ -146,7 +146,7 @@ describe("FlowMachine", () => {
   test("should handle task errors gracefully", async () => {
     // Setup
     const errorMessage = "Test error";
-    flowMachine.taskResolver.registerTask("failingTask", async () => {
+    flowMachine.handlers.registerHandler("failingTask", async () => {
       throw new Error(errorMessage);
     });
 
@@ -186,13 +186,13 @@ describe("FlowMachine", () => {
     });
 
     // Register task handlers
-    flowMachine.taskResolver.registerTask("fetchData", async (inputs) => {
+    flowMachine.handlers.registerHandler("fetchData", async (inputs) => {
       const data = await fetch(inputs.url as string);
       const json = await data.json();
       return { data: json, success: true };
     });
 
-    flowMachine.taskResolver.registerTask("processData", async (inputs) => {
+    flowMachine.handlers.registerHandler("processData", async (inputs) => {
       const data = inputs.data as any[];
       const processed = data.filter((item) => item.value > 10);
       return { processed };
@@ -245,7 +245,7 @@ describe("FlowMachine", () => {
 
   test("should preserve data through to end node", async () => {
     // Setup
-    flowMachine.taskResolver.registerTask("generateData", async () => ({
+    flowMachine.handlers.registerHandler("generateData", async () => ({
       data: { key: "value" },
       timestamp: Date.now(),
     }));
@@ -299,17 +299,17 @@ describe("FlowMachine", () => {
 });
 
 // Test the TaskResolver functionality separately
-describe("TaskResolver", () => {
-  let taskResolver: TaskResolver;
+describe("HandlerResolver", () => {
+  let handlerResolver: HandlerResolver;
 
   beforeEach(() => {
-    taskResolver = new TaskResolver();
+    handlerResolver = new HandlerResolver();
   });
 
   test("should register and execute tasks", async () => {
     // Setup
     const mockTask = vi.fn().mockResolvedValue({ result: "success" });
-    taskResolver.registerTask("testTask", mockTask);
+    handlerResolver.registerHandler("testTask", mockTask);
 
     const node: Node = {
       id: "test",
@@ -319,7 +319,7 @@ describe("TaskResolver", () => {
     };
 
     // Execute
-    const result = await taskResolver.executeTask(node);
+    const result = await handlerResolver.executeHandler(node);
 
     // Assert
     expect(mockTask).toHaveBeenCalledWith({ param: "value" });
@@ -334,7 +334,7 @@ describe("TaskResolver", () => {
       outputs: {},
     };
 
-    await expect(taskResolver.executeTask(node)).rejects.toThrow(
+    await expect(handlerResolver.executeHandler(node)).rejects.toThrow(
       "No task handler registered for node type: unknownTask",
     );
   });
@@ -468,7 +468,7 @@ describe("FlowMachine Advanced Conditions", () => {
 
   test("should support complex conditional branching", async () => {
     // Register task handlers
-    flowMachine.taskResolver.registerTask("checkData", async () => ({
+    flowMachine.handlers.registerHandler("checkData", async () => ({
       status: "valid",
       priority: "high",
       size: 150,
@@ -476,12 +476,12 @@ describe("FlowMachine Advanced Conditions", () => {
     }));
 
     // High priority branch
-    flowMachine.taskResolver.registerTask("highPriorityProcess", async () => ({
+    flowMachine.handlers.registerHandler("highPriorityProcess", async () => ({
       result: "high-priority-processed",
     }));
 
     // Low priority branch
-    flowMachine.taskResolver.registerTask("lowPriorityProcess", async () => ({
+    flowMachine.handlers.registerHandler("lowPriorityProcess", async () => ({
       result: "low-priority-processed",
     }));
 
@@ -546,17 +546,17 @@ describe("FlowMachine Advanced Conditions", () => {
 
   test("should handle null or undefined condition values correctly", async () => {
     // Register tasks
-    flowMachine.taskResolver.registerTask("nullValueTask", async () => ({
+    flowMachine.handlers.registerHandler("nullValueTask", async () => ({
       existingValue: "exists",
       nullValue: null,
       undefinedValue: undefined,
     }));
 
-    flowMachine.taskResolver.registerTask("nullPathHandler", async () => ({
+    flowMachine.handlers.registerHandler("nullPathHandler", async () => ({
       result: "null-path-taken",
     }));
 
-    flowMachine.taskResolver.registerTask("existingPathHandler", async () => ({
+    flowMachine.handlers.registerHandler("existingPathHandler", async () => ({
       result: "existing-path-taken",
     }));
 
@@ -639,7 +639,7 @@ describe("FlowMachine Advanced Conditions", () => {
 
   test("should support complex conditional branching", async () => {
     // Register task handlers
-    flowMachine.taskResolver.registerTask("checkData", async () => ({
+    flowMachine.handlers.registerHandler("checkData", async () => ({
       status: "valid",
       priority: "high",
       size: 150,
@@ -647,12 +647,12 @@ describe("FlowMachine Advanced Conditions", () => {
     }));
 
     // High priority branch
-    flowMachine.taskResolver.registerTask("highPriorityProcess", async () => ({
+    flowMachine.handlers.registerHandler("highPriorityProcess", async () => ({
       result: "high-priority-processed",
     }));
 
     // Low priority branch
-    flowMachine.taskResolver.registerTask("lowPriorityProcess", async () => ({
+    flowMachine.handlers.registerHandler("lowPriorityProcess", async () => ({
       result: "low-priority-processed",
     }));
 
@@ -717,17 +717,17 @@ describe("FlowMachine Advanced Conditions", () => {
 
   test("should handle null or undefined condition values correctly", async () => {
     // Register tasks
-    flowMachine.taskResolver.registerTask("nullValueTask", async () => ({
+    flowMachine.handlers.registerHandler("nullValueTask", async () => ({
       existingValue: "exists",
       nullValue: null,
       undefinedValue: undefined,
     }));
 
-    flowMachine.taskResolver.registerTask("nullPathHandler", async () => ({
+    flowMachine.handlers.registerHandler("nullPathHandler", async () => ({
       result: "null-path-taken",
     }));
 
-    flowMachine.taskResolver.registerTask("existingPathHandler", async () => ({
+    flowMachine.handlers.registerHandler("existingPathHandler", async () => ({
       result: "existing-path-taken",
     }));
 
@@ -812,17 +812,14 @@ describe("FlowMachine Cyclic Flows", () => {
     // Test for a flow with a loop that has a termination condition
     let counter = 0;
 
-    flowMachine.taskResolver.registerTask(
-      "incrementCounter",
-      async (inputs) => {
-        counter++;
-        const currentValue = ((inputs.value as number) || 0) + 1;
-        return {
-          value: currentValue,
-          isDone: currentValue >= 5, // Exit condition
-        };
-      },
-    );
+    flowMachine.handlers.registerHandler("incrementCounter", async (inputs) => {
+      counter++;
+      const currentValue = ((inputs.value as number) || 0) + 1;
+      return {
+        value: currentValue,
+        isDone: currentValue >= 5, // Exit condition
+      };
+    });
 
     const flowDefinition = {
       nodes: [
@@ -871,7 +868,7 @@ describe("FlowMachine Cyclic Flows", () => {
     let iterations = 0;
     const MAX_ITERATIONS = 10; // Safety limit
 
-    flowMachine.taskResolver.registerTask(
+    flowMachine.handlers.registerHandler(
       "potentialInfiniteLoop",
       async (inputs) => {
         iterations++;
@@ -917,7 +914,7 @@ describe("FlowMachine Cyclic Flows", () => {
 
     // Override executeNode to properly handle the loop termination
     const originalExecuteNode = (flowMachine as any).executeNode;
-    (flowMachine as any).executeNode = async function (node: Node) {
+    (flowMachine as any).executeHandler = async function (node: Node) {
       try {
         // Original execution logic
         const executionStart = new Date();
@@ -931,7 +928,7 @@ describe("FlowMachine Cyclic Flows", () => {
         }
         // Execute regular nodes (not start nodes)
         else if (node.type !== "start") {
-          outputs = await this.taskResolver.executeTask(node);
+          outputs = await this.handlerResolver.executeHandler(node);
           for (const [key, value] of Object.entries(outputs)) {
             node.outputs[key] = value;
           }
@@ -1029,14 +1026,14 @@ describe("FlowMachine Error Handling", () => {
 
   test("should support error handling branches in the flow", async () => {
     // Register task handlers
-    flowMachine.taskResolver.registerTask("riskyOperation", async (inputs) => {
+    flowMachine.handlers.registerHandler("riskyOperation", async (inputs) => {
       if (inputs.shouldFail) {
         throw new Error("Intentional failure");
       }
       return { result: "success" };
     });
 
-    flowMachine.taskResolver.registerTask("errorHandler", async (inputs) => {
+    flowMachine.handlers.registerHandler("errorHandler", async (inputs) => {
       return {
         handled: true,
         originalError: inputs.error,
@@ -1131,7 +1128,7 @@ describe("FlowMachine Workflow Patterns", () => {
 
   test("should implement an approval workflow", async () => {
     // Register task handlers for a document approval flow
-    flowMachine.taskResolver.registerTask("createDocument", async () => ({
+    flowMachine.handlers.registerHandler("createDocument", async () => ({
       documentId: "doc-123",
       title: "Important Contract",
       content: "Contract details...",
@@ -1139,7 +1136,7 @@ describe("FlowMachine Workflow Patterns", () => {
       creator: "user1",
     }));
 
-    flowMachine.taskResolver.registerTask("reviewDocument", async (inputs) => ({
+    flowMachine.handlers.registerHandler("reviewDocument", async (inputs) => ({
       documentId: inputs.documentId,
       title: inputs.title,
       status: "reviewed",
@@ -1148,18 +1145,15 @@ describe("FlowMachine Workflow Patterns", () => {
       comments: "Looks good",
     }));
 
-    flowMachine.taskResolver.registerTask(
-      "approveDocument",
-      async (inputs) => ({
-        documentId: inputs.documentId,
-        title: inputs.title,
-        status: "approved",
-        approver: "manager1",
-        approvalDate: new Date().toISOString(),
-      }),
-    );
+    flowMachine.handlers.registerHandler("approveDocument", async (inputs) => ({
+      documentId: inputs.documentId,
+      title: inputs.title,
+      status: "approved",
+      approver: "manager1",
+      approvalDate: new Date().toISOString(),
+    }));
 
-    flowMachine.taskResolver.registerTask("rejectDocument", async (inputs) => ({
+    flowMachine.handlers.registerHandler("rejectDocument", async (inputs) => ({
       documentId: inputs.documentId,
       title: inputs.title,
       status: "rejected",
@@ -1168,7 +1162,7 @@ describe("FlowMachine Workflow Patterns", () => {
       reason: "Missing information",
     }));
 
-    flowMachine.taskResolver.registerTask("notifyCreator", async (inputs) => ({
+    flowMachine.handlers.registerHandler("notifyCreator", async (inputs) => ({
       notificationSent: true,
       recipient: inputs.creator,
       subject: `Document ${inputs.status}: ${inputs.title}`,
@@ -1256,7 +1250,7 @@ describe("FlowMachine Workflow Patterns", () => {
     );
 
     // Now test the rejection path by modifying the review task
-    flowMachine.taskResolver.registerTask("reviewDocument", async (inputs) => ({
+    flowMachine.handlers.registerHandler("reviewDocument", async (inputs) => ({
       documentId: inputs.documentId,
       title: inputs.title,
       status: "reviewed",
@@ -1292,7 +1286,7 @@ describe("FlowMachine Workflow Patterns", () => {
 
   test("should implement a data processing pipeline", async () => {
     // Register task handlers for a data processing pipeline
-    flowMachine.taskResolver.registerTask("loadData", async () => ({
+    flowMachine.handlers.registerHandler("loadData", async () => ({
       records: [
         { id: 1, name: "John", email: "john@example.com", age: 30 },
         { id: 2, name: "Jane", email: "invalid-email", age: 25 },
@@ -1300,7 +1294,7 @@ describe("FlowMachine Workflow Patterns", () => {
       ],
     }));
 
-    flowMachine.taskResolver.registerTask("validateData", async (inputs) => {
+    flowMachine.handlers.registerHandler("validateData", async (inputs) => {
       const records = inputs.records as any[];
       const validRecords = [];
       const invalidRecords = [];
@@ -1334,7 +1328,7 @@ describe("FlowMachine Workflow Patterns", () => {
       };
     });
 
-    flowMachine.taskResolver.registerTask("transformData", async (inputs) => {
+    flowMachine.handlers.registerHandler("transformData", async (inputs) => {
       const records = inputs.validRecords as any[];
       return {
         transformedRecords: records.map((record) => ({
@@ -1347,7 +1341,7 @@ describe("FlowMachine Workflow Patterns", () => {
       };
     });
 
-    flowMachine.taskResolver.registerTask("saveData", async (inputs) => {
+    flowMachine.handlers.registerHandler("saveData", async (inputs) => {
       const records = inputs.transformedRecords as any[];
       return {
         savedCount: records.length,
@@ -1356,7 +1350,7 @@ describe("FlowMachine Workflow Patterns", () => {
       };
     });
 
-    flowMachine.taskResolver.registerTask("logInvalidData", async (inputs) => {
+    flowMachine.handlers.registerHandler("logInvalidData", async (inputs) => {
       const invalidRecords = inputs.invalidRecords as any[];
       return {
         errorCount: inputs.invalidCount,
@@ -1401,7 +1395,8 @@ describe("FlowMachine Workflow Patterns", () => {
             node.outputs[key] = value;
           }
         } else if (node.type !== "start") {
-          outputs = await this.taskResolver.executeTask(node);
+          console.log(this);
+          outputs = await this.handlers.executeHandler(node);
           for (const [key, value] of Object.entries(outputs)) {
             node.outputs[key] = value;
           }
@@ -1555,7 +1550,7 @@ describe("FlowMachine Performance", () => {
     }
 
     // Register passthrough handler
-    flowMachine.taskResolver.registerTask("passthrough", async (inputs) => {
+    flowMachine.handlers.registerHandler("passthrough", async (inputs) => {
       return { ...inputs, visited: true };
     });
 
