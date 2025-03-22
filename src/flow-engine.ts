@@ -1,4 +1,4 @@
-import { Engine } from "json-rules-engine";
+import { Engine, type RuleProperties } from "json-rules-engine";
 
 export interface Node {
   id: string;
@@ -337,7 +337,7 @@ export class FlowMachine {
       const rule = {
         conditions,
         event: { type: "condition-met" }, // Simple placeholder event
-      };
+      } as RuleProperties;
 
       engine.addRule(rule);
 

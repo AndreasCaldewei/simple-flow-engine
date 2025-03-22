@@ -1,17 +1,29 @@
 {
-  "name": "flow-engine",
-  "version": "1.0.0",
+  "name": "firegit",
+  "version": "0.0.6",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "repository": "https://github.com/AndreasCaldewei/fire-git",
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
     "test": "vitest"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "json-rules-engine": "^7.3.1",
+    "json-rules-engine": "^7.3.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.4.0",
     "tsx": "^4.19.3",
-    "vitest": "^3.0.9"
+    "vitest": "^3.0.9",
+    "typescript": "^5.8.2"
   }
 }

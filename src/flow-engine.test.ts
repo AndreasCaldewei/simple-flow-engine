@@ -1,5 +1,11 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from "vitest";
-import { FlowMachine, FlowGraph, HandlerResolver, Node, Edge } from "./main";
+import {
+  FlowMachine,
+  FlowGraph,
+  HandlerResolver,
+  Node,
+  Edge,
+} from "./flow-engine";
 
 // Setup for mocking fetch API
 global.fetch = vi.fn();
