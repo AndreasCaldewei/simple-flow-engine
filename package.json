@@ -1,0 +1,16 @@
+{
+  "name": "flow-engine",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "tsx": "^4.19.3",
+    "vitest": "^3.0.9"
+  }
+}
