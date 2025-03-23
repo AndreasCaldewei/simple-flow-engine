@@ -97,6 +97,21 @@ export class FlowGraph {
   }
 
   /**
+   * Gets incoming edges to a node
+   * @param nodeId The ID of the node
+   * @returns Array of incoming edges
+   */
+  getIncomingEdges(nodeId: string): Edge[] {
+    const incomingEdges: Edge[] = [];
+    for (const edge of this.edges.values()) {
+      if (edge.target === nodeId) {
+        incomingEdges.push(edge);
+      }
+    }
+    return incomingEdges;
+  }
+
+  /**
    * Gets the target node for an edge
    * @param edgeId The ID of the edge
    * @returns The target node or null if not found
@@ -206,7 +221,7 @@ export class FlowMachine {
   }
 
   /**
-   * Executes a node and follows the flow
+   * Executes a node and follows the flow with support for parallel branching
    * @param node The node to execute
    */
   private async executeNode(node: Node): Promise<void> {
@@ -257,25 +272,37 @@ export class FlowMachine {
         return;
       }
 
-      // Find the first edge whose conditions are satisfied
+      // Find all edges whose conditions are satisfied
+      const validEdges = [];
       for (const edge of outgoingEdges) {
         if (await this.evaluateConditions(edge.conditions, node.outputs)) {
-          const nextNode = this.graph.getTargetNode(edge.id);
-          if (nextNode) {
-            // Record edge traversal
-            this.context.edgeTraversals.push({
-              edgeId: edge.id,
-              sourceId: node.id,
-              targetId: nextNode.id,
-              timestamp: new Date(),
-            });
-
-            // Transfer relevant outputs to inputs of the next node
-            this.transferOutputs(node, nextNode);
-            await this.executeNode(nextNode);
-          }
-          break;
+          validEdges.push(edge);
         }
+      }
+
+      // Process all valid edges in parallel
+      if (validEdges.length > 0) {
+        const branchPromises = validEdges.map(async (edge) => {
+          const nextNode = this.graph.getTargetNode(edge.id);
+          if (!nextNode) return;
+
+          // Record edge traversal
+          this.context.edgeTraversals.push({
+            edgeId: edge.id,
+            sourceId: node.id,
+            targetId: nextNode.id,
+            timestamp: new Date(),
+          });
+
+          // Transfer outputs to the next node
+          this.transferOutputs(node, nextNode);
+
+          // Execute the branch
+          return this.executeNode(nextNode);
+        });
+
+        // Wait for all branches to complete
+        await Promise.all(branchPromises);
       }
     } catch (error) {
       // Still record the node execution, but with the error
@@ -288,6 +315,34 @@ export class FlowMachine {
       });
 
       throw error;
+    }
+  }
+
+  /**
+   * Transfers outputs from source node to inputs of target node
+   * @param sourceNode The source node
+   * @param targetNode The target node
+   */
+  private transferOutputs(sourceNode: Node, targetNode: Node): void {
+    // Enhanced version that handles merging inputs when multiple branches converge
+    for (const [key, value] of Object.entries(sourceNode.outputs)) {
+      // If the key already exists in the target inputs, we need to handle the merge
+      if (key in targetNode.inputs) {
+        const existing = targetNode.inputs[key];
+
+        // If the existing value is an array, append to it
+        if (Array.isArray(existing)) {
+          targetNode.inputs[key] = [...existing, value];
+        }
+        // Otherwise, convert to array with both values
+        else {
+          targetNode.inputs[key] = [existing, value];
+        }
+      }
+      // If key doesn't exist, just set it directly
+      else {
+        targetNode.inputs[key] = value;
+      }
     }
   }
 
@@ -306,18 +361,14 @@ export class FlowMachine {
       return true;
     }
 
-    // Check if using the rules engine format (has 'all' or 'any' operators)
-    if (conditions.all || conditions.any) {
-      return await this.evaluateWithRulesEngine(conditions, outputs);
+    // Validate that conditions use rules engine format
+    if (!conditions.all && !conditions.any && !conditions.not) {
+      throw new Error(
+        "Invalid condition format. Conditions must use rules engine format with 'all', 'any', or 'not' operators.",
+      );
     }
 
-    // Legacy implementation - simple key/value matching
-    for (const [key, value] of Object.entries(conditions)) {
-      if (outputs[key] !== value) {
-        return false;
-      }
-    }
-    return true;
+    return await this.evaluateWithRulesEngine(conditions, outputs);
   }
 
   /**
@@ -333,10 +384,10 @@ export class FlowMachine {
     try {
       const engine = new Engine();
 
-      // Create a rule with the conditions directly
+      // Create a rule with the conditions
       const rule = {
-        conditions,
-        event: { type: "condition-met" }, // Simple placeholder event
+        conditions: conditions, // Use the provided conditions directly
+        event: { type: "condition-met" },
       } as RuleProperties;
 
       engine.addRule(rule);
@@ -351,20 +402,6 @@ export class FlowMachine {
       return false;
     }
   }
-
-  /**
-   * Transfers outputs from source node to inputs of target node
-   * @param sourceNode The source node
-   * @param targetNode The target node
-   */
-  private transferOutputs(sourceNode: Node, targetNode: Node): void {
-    // Simple implementation - transfer all outputs to inputs
-    // This could be expanded to support mapping specific outputs to inputs
-    for (const [key, value] of Object.entries(sourceNode.outputs)) {
-      targetNode.inputs[key] = value;
-    }
-  }
-
   /**
    * Load a flow definition into the machine
    * @param definition The flow definition
@@ -403,6 +440,28 @@ export class FlowMachine {
     }
 
     return { ...finalNode.outputs };
+  }
+
+  /**
+   * Get the results from all end nodes
+   * @returns Map of node IDs to their results
+   */
+  getAllEndResults(): Record<string, Record<string, unknown>> {
+    // Find all executed end nodes
+    const endNodes = this.context.nodeExecutions
+      .filter((execution) => execution.nodeType === "end")
+      .map((execution) => execution.nodeId);
+
+    // Get the results from each end node
+    const results: Record<string, Record<string, unknown>> = {};
+    for (const nodeId of endNodes) {
+      const result = this.getNodeResult(nodeId);
+      if (result) {
+        results[nodeId] = result;
+      }
+    }
+
+    return results;
   }
 
   /**
